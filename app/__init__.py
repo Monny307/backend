@@ -23,13 +23,12 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
 
-    # Ensure we have a default config fallback
+    # Use chosen config or default
     chosen_config = config.get(config_name, config['default'])
     app.config.from_object(chosen_config)
 
-    # --- FIX: Ensure SQLALCHEMY_DATABASE_URI is always set ---
+    # Ensure SQLALCHEMY_DATABASE_URI is set
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
-        # Fallback to local SQLite for testing if DATABASE_URL missing
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 
     # Initialize extensions
@@ -39,20 +38,21 @@ def create_app(config_name=None):
     bcrypt.init_app(app)
     mail.init_app(app)
 
-    # Configure CORS
+    # --- FIX: Allow localhost + deployed frontend for CORS ---
+    cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000'])
+    if isinstance(cors_origins, str):
+        cors_origins = [o.strip() for o in cors_origins.split(',')]
     CORS(app,
-         resources={r"/api/*": {"origins": app.config.get('CORS_ORIGINS', ['http://localhost:3000'])}},
+         resources={r"/api/*": {"origins": cors_origins}},
          supports_credentials=True,
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 
-    # Create upload folder if it doesn't exist
+    # Upload folder
     upload_folder = app.config.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
-    if not os.path.exists(upload_folder):
-        os.makedirs(upload_folder, exist_ok=True)
-        os.makedirs(os.path.join(upload_folder, 'cvs'), exist_ok=True)
-        os.makedirs(os.path.join(upload_folder, 'profiles'), exist_ok=True)
-        os.makedirs(os.path.join(upload_folder, 'logos'), exist_ok=True)
+    os.makedirs(upload_folder, exist_ok=True)
+    for sub in ['cvs', 'profiles', 'logos']:
+        os.makedirs(os.path.join(upload_folder, sub), exist_ok=True)
 
     # Register blueprints
     from app.routes import auth, users, jobs, applications, profiles, job_alerts, admin, contact, oauth, saved_jobs, cv_analysis, notifications
@@ -74,7 +74,7 @@ def create_app(config_name=None):
     from app.routes.oauth import init_oauth
     init_oauth(app)
 
-    # Health check endpoint
+    # Health check
     @app.route('/health')
     def health_check():
         return {'status': 'healthy', 'message': 'WebCV Backend API is running'}, 200
