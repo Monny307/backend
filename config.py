@@ -90,3 +90,7 @@ config = {
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
 ENVIRONMENT = os.getenv("FLASK_ENV", "development")
 
+
+class ProductionConfig(Config):
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
