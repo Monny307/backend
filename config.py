@@ -86,3 +86,7 @@ config = {
     'testing': TestingConfig,
     'default': DevelopmentConfig
 }
+
+USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
+ENVIRONMENT = os.getenv("FLASK_ENV", "development")
+
